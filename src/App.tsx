@@ -21,6 +21,7 @@ const App = () => {
   const [currentFile, setCurrentFile] = useState<FileData | null>(null);
   const [progressStore, setProgressStore] = useState<Record<string, ReadingProgress>>({});
   const [lang, setLang] = useState<Lang>('zh');
+  const [isInitialized, setIsInitialized] = useState(false);
   const t = TRANSLATIONS[lang];
 
   // Initialize
@@ -28,10 +29,56 @@ const App = () => {
     const initialize = async () => {
       const storedProgress = await getProgressStore();
       setProgressStore(storedProgress);
-      loadPersistedDirectories();
+      await loadPersistedDirectories();
+      setIsInitialized(true);
     };
     initialize();
   }, []);
+
+  // Handle URL params after initialization
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const urlView = params.get('view');
+
+    if (urlView === 'library' || urlView === 'history') {
+      setView(urlView);
+    }
+
+    if (action === 'open_last_read') {
+      const openLastRead = async () => {
+        const historyItems = Object.entries(progressStore)
+          .sort(([, a], [, b]) => b.lastRead - a.lastRead);
+        
+        if (historyItems.length > 0) {
+          const lastReadFile = historyItems[0][0];
+          
+          // We need to scan all directories to find the file handle
+          for (const dir of directories) {
+            await scanDirectory(dir.id, dir.handle, false);
+          }
+
+          setDirectories(prevDirs => {
+            let foundFile: FileData | null = null;
+            for (const dir of prevDirs) {
+              const f = dir.files.find(file => file.name === lastReadFile);
+              if (f) {
+                foundFile = f;
+                break;
+              }
+            }
+            if (foundFile) {
+              handleOpenFile(foundFile);
+            }
+            return prevDirs;
+          });
+        }
+      };
+      openLastRead();
+    }
+  }, [isInitialized]);
 
   const loadPersistedDirectories = async () => {
     try {
@@ -39,25 +86,15 @@ const App = () => {
       const loadedDirs: DirectoryData[] = [];
       
       for (const [id, handle] of handles) {
-        // Check if permission is still granted.
         if (await verifyPermission(handle, true)) {
             loadedDirs.push({
-              id,
-              name: handle.name,
-              handle: handle,
-              isExpanded: false,
-              status: 'connected', 
-              files: []
+              id, name: handle.name, handle: handle,
+              isExpanded: false, status: 'connected', files: []
             });
         } else {
-            // Permission was revoked or is otherwise inaccessible.
             loadedDirs.push({
-              id,
-              name: handle.name,
-              handle: handle, 
-              isExpanded: false,
-              status: 'need-permission',
-              files: []
+              id, name: handle.name, handle: handle, 
+              isExpanded: false, status: 'need-permission', files: []
             });
         }
       }
@@ -75,26 +112,20 @@ const App = () => {
       await saveDirectoryHandle(id, handle);
       
       const newDir: DirectoryData = {
-        id,
-        name: handle.name,
-        handle: handle,
-        isExpanded: true,
-        status: 'connected',
-        files: []
+        id, name: handle.name, handle: handle,
+        isExpanded: true, status: 'connected', files: []
       };
       
       setDirectories(prev => [...prev, newDir]);
       scanDirectory(newDir.id, handle); // Scan immediately
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        // Do nothing, user cancelled the picker
-      } else {
+      if (err.name !== 'AbortError') {
         console.warn("Error choosing directory", err);
       }
     }
   };
 
-  const scanDirectory = async (dirId: string, handle: FileSystemDirectoryHandle) => {
+  const scanDirectory = async (dirId: string, handle: FileSystemDirectoryHandle, updateExpandedState = true) => {
     const store = await getProgressStore();
     const pdfFiles: FileData[] = [];
 
@@ -111,9 +142,17 @@ const App = () => {
         }
       }
       
-      setDirectories(prev => prev.map(dir => 
-        dir.id === dirId ? { ...dir, files: pdfFiles, error: undefined, status: 'connected' } : dir
-      ));
+      setDirectories(prev => prev.map(dir => {
+        if (dir.id === dirId) {
+          const newDir = { ...dir, files: pdfFiles, error: undefined, status: 'connected' };
+          if (updateExpandedState) {
+            newDir.isExpanded = true;
+          }
+          return newDir;
+        }
+        return dir;
+      }));
+
     } catch (e: any) {
       console.error(e);
       setDirectories(prev => prev.map(dir => 
@@ -127,11 +166,8 @@ const App = () => {
     if (!dir || dir.status === 'need-permission') return;
 
     if (!dir.isExpanded) {
-      // Expanding: re-scan to get latest files
       await scanDirectory(id, dir.handle);
-      setDirectories(prev => prev.map(d => d.id === id ? { ...d, isExpanded: true } : d));
     } else {
-      // Collapsing
       setDirectories(prev => prev.map(d => d.id === id ? { ...d, isExpanded: false } : d));
     }
   };
