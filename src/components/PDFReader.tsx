@@ -34,7 +34,7 @@ export const PDFReader = ({
   useEffect(() => {
     const loadLib = async () => {
       try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('pdf.worker.min.js');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
       } catch (err: any) {
         console.error("PDF Engine Load Error:", err);
         setError(`${t.errorEngineLoad}: ${err.message || 'Unknown error'}`);
