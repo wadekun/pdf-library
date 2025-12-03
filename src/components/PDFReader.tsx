@@ -1,3 +1,4 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { ArrowLeft, ZoomOut, ZoomIn, AlertCircle } from 'lucide-react';
 import { FileData, Lang } from '../types';
@@ -5,15 +6,15 @@ import { TRANSLATIONS } from '../translations';
 import { PDFPage } from './PDFPage';
 
 // --- Component: PDF Reader ---
-export const PDFReader = ({ 
-  fileData, 
-  initialPage, 
-  onClose, 
+export const PDFReader = ({
+  fileData,
+  initialPage,
+  onClose,
   onProgressUpdate,
   lang
-}: { 
-  fileData: FileData; 
-  initialPage: number; 
+}: {
+  fileData: FileData;
+  initialPage: number;
   onClose: () => void;
   onProgressUpdate: (page: number, total: number) => void;
   lang: Lang;
@@ -24,12 +25,12 @@ export const PDFReader = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageDimensions, setPageDimensions] = useState<{ width: number, height: number } | null>(null);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
   const t = TRANSLATIONS[lang];
 
-  // Load Library
+  // Load Library - only run once
   useEffect(() => {
     const loadLib = async () => {
       try {
@@ -41,9 +42,9 @@ export const PDFReader = ({
       }
     };
     loadLib();
-  }, [lang]);
+  }, []); 
 
-  // Load Document
+  // Load Document - only reload when file actually changes
   useEffect(() => {
     if (!fileData) return;
 
@@ -62,7 +63,7 @@ export const PDFReader = ({
         const arrayBuffer = await file.arrayBuffer();
         const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         setPdfDoc(doc);
-        
+
         // Fetch first page to get dimensions for placeholders
         const page1 = await doc.getPage(1);
         const viewport = page1.getViewport({ scale: 1.0 });
@@ -76,43 +77,67 @@ export const PDFReader = ({
       }
     };
     loadDoc();
-  }, [fileData, lang]);
+  }, [fileData?.id]); 
 
-  // Handle Scroll to Initial Page
+  // Handle Scroll to Initial Page - only run once when document is loaded
   useEffect(() => {
-    if (loading || !pdfDoc || !pageDimensions) return;
+    if (loading || !pdfDoc || !pageDimensions || initialScrollDone.current) return;
 
-    if (initialPage > 1 && !initialScrollDone.current) {
-      // Small timeout to allow DOM to render placeholders
+    if (initialPage > 1) {
       const timer = setTimeout(() => {
         const el = document.getElementById(`page-${initialPage}`);
         if (el) {
           el.scrollIntoView({ behavior: 'auto', block: 'start' });
-          
-          // CRITICAL: Add a longer delay before enabling progress updates. 
-          setTimeout(() => {
-            initialScrollDone.current = true;
-          }, 500);
         }
+        initialScrollDone.current = true;
       }, 100);
       return () => clearTimeout(timer);
     } else {
-        initialScrollDone.current = true;
+      initialScrollDone.current = true;
     }
-  }, [loading, pdfDoc, pageDimensions, initialPage]);
+  }, [loading, pdfDoc, pageDimensions]);
+
+  const handleScaleChange = (newScale: number) => {
+    if (newScale === scale) return;
+    setScale(newScale);
+  };
+  
+  // Smooth-zoom implementation
+  const prevScaleRef = useRef(scale);
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+  
+    const oldScale = prevScaleRef.current;
+    const newScale = scale;
+    
+    // The point in the viewport we want to zoom into (e.g., the center)
+    const viewportAnchorY = container.clientHeight / 2;
+  
+    // The point in the document that corresponds to the viewport anchor
+    const documentAnchorY = container.scrollTop + viewportAnchorY;
+    
+    // Calculate the new scroll top to keep the anchor point at the same place
+    const newScrollTop = (documentAnchorY * (newScale / oldScale)) - viewportAnchorY;
+  
+    container.scrollTop = newScrollTop;
+  
+    // Update the ref for the next scale change
+    prevScaleRef.current = newScale;
+  }, [scale]);
 
   // Memoized callback to update current page
   const handlePageVisible = useCallback((page: number) => {
-    // Guard: Prevent overwriting progress while waiting for initial scroll to a non-first page
     if (initialPage > 1 && !initialScrollDone.current) {
       return;
     }
-
-    setCurrentPage(page);
-    if (pdfDoc) {
-      onProgressUpdate(page, pdfDoc.numPages);
+    if (currentPage !== page) {
+      setCurrentPage(page);
+      if (pdfDoc) {
+        onProgressUpdate(page, pdfDoc.numPages);
+      }
     }
-  }, [pdfDoc, initialPage]);
+  }, [currentPage, initialPage, pdfDoc, onProgressUpdate]);
 
   // Fixed Dark Theme Styling
   const bgClass = 'bg-gray-900';
@@ -153,11 +178,11 @@ export const PDFReader = ({
         </div>
 
         <div className="flex items-center gap-2 justify-end w-1/3">
-          <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className={`p-2 rounded transition-colors ${buttonHoverClass}`}>
+          <button onClick={() => handleScaleChange(Math.max(0.5, scale - 0.2))} className={`p-2 rounded transition-colors ${buttonHoverClass}`}>
             <ZoomOut size={20} />
           </button>
           <span className={`text-xs w-12 text-center ${textClass}`}>{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(3.0, s + 0.2))} className={`p-2 rounded transition-colors ${buttonHoverClass}`}>
+          <button onClick={() => handleScaleChange(Math.min(3.0, scale + 0.2))} className={`p-2 rounded transition-colors ${buttonHoverClass}`}>
             <ZoomIn size={20} />
           </button>
         </div>

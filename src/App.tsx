@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  Book, 
   Clock, 
   FolderOpen, 
   History,
@@ -10,7 +9,7 @@ import {
 } from 'lucide-react';
 import { DirectoryData, FileData, Lang, ReadingProgress, ViewState } from './types';
 import { TRANSLATIONS } from './translations';
-import { getDirectoryIds, getProgressStore, removeDirectoryId, saveDirectoryId, saveProgressStore } from './lib/storage';
+import { getDirectoryHandles, getProgressStore, removeDirectoryHandle, saveDirectoryHandle, saveProgressStore } from './lib/storage';
 import { DirectoryRow } from './components/DirectoryRow';
 import { PDFReader } from './components/PDFReader';
 
@@ -29,73 +28,66 @@ const App = () => {
     const initialize = async () => {
       const storedProgress = await getProgressStore();
       setProgressStore(storedProgress);
-      loadPersistedDirectories(storedProgress);
+      loadPersistedDirectories();
     };
     initialize();
   }, []);
 
-  const loadPersistedDirectories = async (currentProgress: Record<string, ReadingProgress>) => {
+  const loadPersistedDirectories = async () => {
     try {
-      const retainedIds = await getDirectoryIds();
+      const handles = await getDirectoryHandles();
       const loadedDirs: DirectoryData[] = [];
       
-      for (const id in retainedIds) {
-        const retainedId = retainedIds[id];
-        const isRestorable = await chrome.fileSystem.isRestorable(retainedId);
-        if (isRestorable) {
-          const handle = await chrome.fileSystem.restoreEntry(retainedId);
-          if (handle && handle.isDirectory) {
+      for (const [id, handle] of handles) {
+        // Check if permission is still granted.
+        if (await verifyPermission(handle, true)) {
             loadedDirs.push({
               id,
               name: handle.name,
-              handle: handle as FileSystemDirectoryHandle,
+              handle: handle,
               isExpanded: false,
               status: 'connected', 
               files: []
             });
-          }
         } else {
-          // This directory's permission was revoked or is otherwise inaccessible.
-          // We add it to the list to inform the user.
-          const handleName = id.split('-').slice(1).join('-'); // Recreate name from id
-          loadedDirs.push({
-            id,
-            name: handleName,
-            handle: null as any, // This handle is invalid, UI should reflect this
-            isExpanded: false,
-            status: 'need-permission',
-            files: []
-          });
+            // Permission was revoked or is otherwise inaccessible.
+            loadedDirs.push({
+              id,
+              name: handle.name,
+              handle: handle, 
+              isExpanded: false,
+              status: 'need-permission',
+              files: []
+            });
         }
       }
       setDirectories(loadedDirs);
     } catch (e) {
-      console.error("Failed to load directories from chrome.storage", e);
+      console.error("Failed to load directories from IndexedDB", e);
     }
   };
 
   const handleAddDirectory = async () => {
     try {
-      const handle = await chrome.fileSystem.chooseEntry({ type: 'openDirectory' });
-      const retainedId = chrome.fileSystem.retainEntry(handle);
+      const handle = await window.showDirectoryPicker();
       const id = `dir-${handle.name}-${Date.now()}`;
       
-      await saveDirectoryId(id, retainedId);
+      await saveDirectoryHandle(id, handle);
       
       const newDir: DirectoryData = {
         id,
         name: handle.name,
-        handle: handle as FileSystemDirectoryHandle,
+        handle: handle,
         isExpanded: true,
         status: 'connected',
         files: []
       };
       
       setDirectories(prev => [...prev, newDir]);
-      scanDirectory(newDir.id, handle as FileSystemDirectoryHandle); // Scan immediately
+      scanDirectory(newDir.id, handle); // Scan immediately
     } catch (err: any) {
-      if (err.message.includes('User cancelled')) {
-        // Do nothing
+      if (err.name === 'AbortError') {
+        // Do nothing, user cancelled the picker
       } else {
         console.warn("Error choosing directory", err);
       }
@@ -144,20 +136,37 @@ const App = () => {
     }
   };
 
-  const verifyPermission = async (id: string) => {
-    // Re-requesting a specific directory isn't a direct API call.
-    // The best UX is to guide the user to remove and re-add it.
-    // For this implementation, we will remove the broken link and prompt the user.
-    alert('Permission for this directory was lost. Please remove it and add it again.');
-    await removeDirectory(id, true);
+  const verifyPermission = async (handle: FileSystemDirectoryHandle, silent = false): Promise<boolean> => {
+    const options = { mode: 'read' };
+    // Check if permission is already granted
+    if ((await handle.queryPermission(options)) === 'granted') {
+      return true;
+    }
+    // Request permission if not granted
+    if (!silent) {
+        if ((await handle.requestPermission(options)) === 'granted') {
+            return true;
+        }
+    }
+    return false;
+  };
+  
+  const handleReconnect = async (id: string) => {
+    const dir = directories.find(d => d.id === id);
+    if (!dir) return;
+
+    if (await verifyPermission(dir.handle)) {
+        setDirectories(prev => prev.map(d => d.id === id ? { ...d, status: 'connected' } : d));
+        await scanDirectory(id, dir.handle);
+    }
   };
 
-  const removeDirectory = async (id: string, isVerificationFailure = false) => {
-    if (!isVerificationFailure) {
-       const confirmed = confirm(`Are you sure you want to remove this directory from your library?`);
-       if (!confirmed) return;
-    }
-    await removeDirectoryId(id);
+
+  const removeDirectory = async (id: string) => {
+    const confirmed = confirm(`Are you sure you want to remove this directory from your library?`);
+    if (!confirmed) return;
+    
+    await removeDirectoryHandle(id);
     setDirectories(prev => prev.filter(d => d.id !== id));
   };
 
@@ -167,22 +176,24 @@ const App = () => {
     setView('reader');
   };
 
-  const handleProgressUpdate = async (page: number, total: number) => {
+  const handleProgressUpdate = useCallback(async (page: number, total: number) => {
     if (!currentFile) return;
-    
+
     const newProgress: ReadingProgress = {
       page,
       totalPages: total,
       lastRead: Date.now()
     };
 
-    const newStore = {
-      ...progressStore,
-      [currentFile.name]: newProgress
-    };
-
-    setProgressStore(newStore);
-    await saveProgressStore(newStore);
+    // Use functional updates to avoid dependency on current state
+    setProgressStore(prev => {
+      const newStore = {
+        ...prev,
+        [currentFile.name]: newProgress
+      };
+      saveProgressStore(newStore);
+      return newStore;
+    });
 
     // Update state everywhere
     setCurrentFile(prev => prev ? { ...prev, progress: newProgress } : null);
@@ -190,7 +201,7 @@ const App = () => {
       ...dir,
       files: dir.files.map(f => f.name === currentFile.name ? { ...f, progress: newProgress } : f)
     })));
-  };
+  }, [currentFile]); // Remove progressStore from dependencies
 
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', {
@@ -235,7 +246,7 @@ const App = () => {
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 z-10 shadow-sm">
         <div className="p-6">
           <h1 className="text-xl font-bold flex items-center gap-2 text-indigo-600">
-            <Book className="fill-current" />
+            <img src="/icons/icon32.png" alt="PDF Library Icon" className="w-6 h-6" />
             <span>{t.appTitle}</span>
           </h1>
           <p className="text-xs text-gray-500 mt-2">{t.appSubtitle}</p>
@@ -323,7 +334,7 @@ const App = () => {
                       directory={dir}
                       onToggle={toggleDirectory}
                       onRemove={() => removeDirectory(dir.id)}
-                      onVerifyPermission={verifyPermission}
+                      onVerifyPermission={() => handleReconnect(dir.id)}
                       onOpenFile={handleOpenFile}
                       lang={lang}
                     />

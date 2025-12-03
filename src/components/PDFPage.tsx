@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { Lang } from '../types';
 
 // --- Component: PDF Page ---
-export const PDFPage = ({
+const PDFPageComponent = ({
   pageNumber,
   pdfDoc,
   scale,
@@ -53,11 +53,17 @@ export const PDFPage = ({
     const element = containerRef.current;
     if (!element) return;
 
+    let lastTriggered = 0;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
-            onVisible(pageNumber);
+            const now = Date.now();
+            // Throttle the callback to prevent multiple rapid calls
+            if (now - lastTriggered > 100) {
+              lastTriggered = now;
+              onVisible(pageNumber);
+            }
           }
         });
       },
@@ -85,11 +91,9 @@ export const PDFPage = ({
 
         if (!canvas || !context) return;
 
-        // Resize canvas if needed
-        if (canvas.height !== viewport.height || canvas.width !== viewport.width) {
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-        }
+        // Set canvas dimensions once
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
 
         const renderContext = {
           canvasContext: context,
@@ -108,7 +112,7 @@ export const PDFPage = ({
     };
 
     renderPage();
-  }, [pdfDoc, pageNumber, scale, inView]);
+  }, [pageNumber, scale, inView, pdfDoc.numPages]); // Replace pdfDoc with pdfDoc.numPages to avoid re-renders
 
   return (
     <div 
@@ -133,3 +137,5 @@ export const PDFPage = ({
     </div>
   );
 };
+
+export const PDFPage = memo(PDFPageComponent);

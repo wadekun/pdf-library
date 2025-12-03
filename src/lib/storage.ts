@@ -1,7 +1,7 @@
 import { ReadingProgress } from "../types";
+import * as idb from './indexedDB';
 
 const PROGRESS_STORE_KEY = 'progressStore';
-const DIRECTORY_IDS_KEY = 'directoryIds';
 
 // --- Reading Progress Store (chrome.storage) ---
 
@@ -23,35 +23,24 @@ export const saveProgressStore = async (data: Record<string, ReadingProgress>): 
   }
 };
 
+// --- Directory Handle Store (IndexedDB) ---
 
-// --- Directory Handle ID Store (chrome.storage) ---
-
-export const getDirectoryIds = async (): Promise<Record<string, string>> => {
-  try {
-    const result = await chrome.storage.local.get(DIRECTORY_IDS_KEY);
-    return result[DIRECTORY_IDS_KEY] || {};
-  } catch (e) {
-    console.error("Failed to load directory IDs from chrome.storage", e);
-    return {};
-  }
+export const getDirectoryHandles = async (): Promise<[string, FileSystemDirectoryHandle][]> => {
+    const handleKeys = await idb.keys();
+    const handles: [string, FileSystemDirectoryHandle][] = [];
+    for (const key of handleKeys) {
+        const handle = await idb.get<FileSystemDirectoryHandle>(key);
+        if (handle) {
+            handles.push([key as string, handle]);
+        }
+    }
+    return handles;
 };
 
-export const saveDirectoryId = async (id: string, retainedId: string): Promise<void> => {
-  try {
-    const ids = await getDirectoryIds();
-    ids[id] = retainedId;
-    await chrome.storage.local.set({ [DIRECTORY_IDS_KEY]: ids });
-  } catch (e) {
-    console.error("Failed to save directory ID to chrome.storage", e);
-  }
+export const saveDirectoryHandle = async (id: string, handle: FileSystemDirectoryHandle): Promise<void> => {
+  await idb.set(id, handle);
 };
 
-export const removeDirectoryId = async (id: string): Promise<void> => {
-  try {
-    const ids = await getDirectoryIds();
-    delete ids[id];
-    await chrome.storage.local.set({ [DIRECTORY_IDS_KEY]: ids });
-  } catch (e) {
-    console.error("Failed to remove directory ID from chrome.storage", e);
-  }
+export const removeDirectoryHandle = async (id: string): Promise<void> => {
+  await idb.del(id);
 };
