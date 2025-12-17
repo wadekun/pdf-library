@@ -1,3 +1,49 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Scrollbar for Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* React-PDF Outline Dark Mode Styles */
+.react-pdf__Outline__item {
+  padding: 4px 0;
+}
+
+.react-pdf__Outline__item > a {
+  color: #d1d5db !important; /* text-gray-300 */
+  text-decoration: none;
+  font-size: 0.875rem; /* text-sm */
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.react-pdf__Outline__item > a:hover {
+  background-color: #374151; /* bg-gray-700 */
+  color: #ffffff !important;
+}
+
+/* Nested items indentation */
+.react-pdf__Outline__item > ul {
+  padding-left: 16px;
+  list-style-type: none;
+}
+
