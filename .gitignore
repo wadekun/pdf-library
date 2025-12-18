@@ -22,4 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
 .gemini-clipboard
+=======
+
+gemini-clipboard
+>>>>>>> 37bc62c (gitignore)
