@@ -6,6 +6,16 @@ export interface ReadingProgress {
   lastRead: number; // timestamp
 }
 
+export interface PDFOutlineItem {
+  title: string;
+  bold: boolean;
+  italic: boolean;
+  color: Uint8ClampedArray;
+  dest: string | any[] | null;
+  url: string | null;
+  items: PDFOutlineItem[];
+}
+
 export interface FileData {
   id: string; // unique ID composed of dirId + fileName
   directoryId: string;

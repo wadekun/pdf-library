@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Document, pdfjs, Outline } from 'react-pdf';
+import { Document, pdfjs } from 'react-pdf';
 import { ArrowLeft, ZoomOut, ZoomIn, AlertCircle, List } from 'lucide-react';
-import { FileData, Lang } from '../types';
+import { FileData, Lang, PDFOutlineItem } from '../types';
 import { TRANSLATIONS } from '../translations';
 import { PDFPage } from './PDFPage';
+import { PDFOutline } from './PDFOutline';
 
 // Import CSS for react-pdf
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -34,6 +35,8 @@ export const PDFReader = ({
   const [file, setFile] = useState<File | null>(null);
   const [documentKey, setDocumentKey] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [outline, setOutline] = useState<PDFOutlineItem[]>([]);
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const initialScrollDone = useRef(false);
@@ -47,6 +50,7 @@ export const PDFReader = ({
       setLoading(true);
       setError(null);
       initialScrollDone.current = false;
+      setOutline([]); // Reset outline
 
       try {
         if (!fileData.handle) {
@@ -68,8 +72,18 @@ export const PDFReader = ({
   // Handle document load success
   const onDocumentLoadSuccess = useCallback(async (pdf: any) => {
     setNumPages(pdf.numPages);
+    setPdfDocument(pdf); // Save PDF instance
     setLoading(false);
 
+    // Get Outline
+    try {
+      const outlineData = await pdf.getOutline();
+      setOutline(outlineData || []);
+    } catch (error) {
+      console.warn("Failed to load outline", error);
+    }
+
+    // Auto-fit Logic
     try {
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
@@ -155,10 +169,36 @@ export const PDFReader = ({
     }
   }, [currentPage, initialPage, numPages, onProgressUpdate]);
 
-  const onOutlineItemClick = ({ pageNumber }: { pageNumber: number }) => {
-    const el = document.getElementById(`page-${pageNumber}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+  // Handle Outline Click
+  const handleOutlineClick = async (dest: any) => {
+    if (!pdfDocument) return;
+
+    try {
+      let pageIndex = -1;
+
+      // dest can be a string (named destination) or an array (explicit destination)
+      if (typeof dest === 'string') {
+        const explicitDest = await pdfDocument.getDestination(dest);
+        if (explicitDest) {
+            const pageRef = explicitDest[0];
+            pageIndex = await pdfDocument.getPageIndex(pageRef);
+        }
+      } else if (Array.isArray(dest)) {
+          const pageRef = dest[0];
+          // Usually dest[0] is a Ref object, sometimes it's null (if pointing to current page)
+          // or an int. `getPageIndex` handles Ref and int usually.
+          pageIndex = await pdfDocument.getPageIndex(pageRef);
+      }
+
+      if (pageIndex !== -1) {
+        const pageNumber = pageIndex + 1; // Convert 0-based index to 1-based page number
+        const el = document.getElementById(`page-${pageNumber}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      }
+    } catch (e) {
+      console.error("Navigation failed", e);
     }
   };
 
@@ -225,10 +265,12 @@ export const PDFReader = ({
         {isSidebarOpen && (
           <div className="w-64 bg-gray-800 border-r border-gray-700 overflow-y-auto shrink-0 transition-all">
             <div className="p-4 text-sm text-gray-300">
-               {file && (
-                 <Document file={file} className="outline-container">
-                    <Outline onItemClick={onOutlineItemClick} className="custom-outline" />
-                 </Document>
+               {outline.length > 0 ? (
+                 <PDFOutline items={outline} onItemClick={handleOutlineClick} />
+               ) : (
+                 <div className="text-gray-500 text-center mt-10">
+                   {t.noOutline || "No Table of Contents"}
+                 </div>
                )}
             </div>
           </div>
