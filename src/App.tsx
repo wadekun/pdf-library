@@ -49,7 +49,7 @@ const App = () => {
 
     if (action === 'open_last_read') {
       const openLastRead = async () => {
-        const historyItems = Object.entries(progressStore)
+        const historyItems = (Object.entries(progressStore) as [string, ReadingProgress][])
           .sort(([, a], [, b]) => b.lastRead - a.lastRead);
         
         if (historyItems.length > 0) {
@@ -173,7 +173,7 @@ const App = () => {
   };
 
   const verifyPermission = async (handle: FileSystemDirectoryHandle, silent = false): Promise<boolean> => {
-    const options = { mode: 'read' };
+    const options: FileSystemHandlePermissionDescriptor = { mode: 'read' };
     // Check if permission is already granted
     if ((await handle.queryPermission(options)) === 'granted') {
       return true;
@@ -246,7 +246,7 @@ const App = () => {
   };
 
   // Flatten all files for History view
-  const historyItems = Object.entries(progressStore)
+  const historyItems = (Object.entries(progressStore) as [string, ReadingProgress][])
     .sort(([, a], [, b]) => b.lastRead - a.lastRead)
     .map(([name, progress]) => {
       let foundFile: FileData | undefined;
@@ -369,8 +369,8 @@ const App = () => {
                       key={dir.id}
                       directory={dir}
                       onToggle={toggleDirectory}
-                      onRemove={() => removeDirectory(dir.id)}
-                      onVerifyPermission={() => handleReconnect(dir.id)}
+                      onRemove={removeDirectory}
+                      onVerifyPermission={handleReconnect}
                       onOpenFile={handleOpenFile}
                       lang={lang}
                     />

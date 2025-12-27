@@ -7,8 +7,8 @@ const PROGRESS_STORE_KEY = 'progressStore';
 
 export const getProgressStore = async (): Promise<Record<string, ReadingProgress>> => {
   try {
-    const result = await chrome.storage.local.get(PROGRESS_STORE_KEY);
-    return result[PROGRESS_STORE_KEY] || {};
+    const result = await chrome.storage.local.get(PROGRESS_STORE_KEY) as Record<string, any>;
+    return (result[PROGRESS_STORE_KEY] as Record<string, ReadingProgress>) || {};
   } catch (e) {
     console.error("Failed to load progress from chrome.storage", e);
     return {};

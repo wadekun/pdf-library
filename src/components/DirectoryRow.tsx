@@ -4,20 +4,20 @@ import { DirectoryData, FileData, Lang } from '../types';
 import { TRANSLATIONS } from '../translations';
 
 // --- Component: Directory Row ---
-export const DirectoryRow = ({ 
-  directory, 
-  onToggle, 
-  onRemove,
-  onVerifyPermission,
-  onOpenFile,
-  lang
-}: { 
+export const DirectoryRow: React.FC<{ 
   directory: DirectoryData; 
   onToggle: (id: string) => void; 
   onRemove: (id: string) => void;
   onVerifyPermission: (id: string) => void;
   onOpenFile: (file: FileData) => void;
   lang: Lang;
+}> = ({ 
+  directory, 
+  onToggle, 
+  onRemove,
+  onVerifyPermission,
+  onOpenFile,
+  lang
 }) => {
   const fileCount = directory.files.length;
   const t = TRANSLATIONS[lang];

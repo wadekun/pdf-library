@@ -30,6 +30,7 @@ export const TRANSLATIONS = {
     failedScan: "Failed to scan files. Permission might be needed.",
     errorPdfLoad: "Failed to open PDF file",
     errorEngineLoad: "Failed to load PDF engine",
+    noOutline: "No Outline Available",
     permissionDenied: "Permission denied",
     cannotAccess: "Cannot access file content"
   },
@@ -64,6 +65,7 @@ export const TRANSLATIONS = {
     failedScan: "扫描文件失败。可能需要权限。",
     errorPdfLoad: "打开 PDF 文件失败",
     errorEngineLoad: "加载 PDF 引擎失败",
+    noOutline: "暂无目录",
     permissionDenied: "权限被拒绝",
     cannotAccess: "无法访问文件内容"
   }

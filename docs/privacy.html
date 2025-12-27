@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - PDF Library</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 antialiased">
+
+    <div class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        
+        <div class="mb-8">
+            <a href="index.html" class="text-blue-600 hover:text-blue-800 font-medium">&larr; Back to Home</a>
+        </div>
+
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg p-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
+            <p class="text-sm text-gray-500 mb-8">Last Updated: December 18, 2025</p>
+
+            <div class="prose prose-blue max-w-none">
+                <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-4">1. Introduction</h2>
+                <p class="mb-4">
+                    <strong>PDF Library</strong> ("we", "our", or "the Extension") is a Chrome Extension designed to help users manage and read PDF files stored on their local device. We are committed to protecting your privacy. This policy explains what data we handle and how it is treated.
+                </p>
+
+                <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-4">2. Data Collection and Usage</h2>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="font-medium text-blue-700">
+                        We do not collect, store, or transmit any of your personal data or file content to external servers.
+                    </p>
+                </div>
+                <ul class="list-disc pl-5 space-y-2 mb-4">
+                    <li><strong>Local Processing:</strong> All PDF processing, rendering, and management happens entirely within your browser on your local machine using the File System Access API.</li>
+                    <li><strong>No Cloud Uploads:</strong> Your PDF files never leave your computer. The Extension does not have a backend server.</li>
+                </ul>
+
+                <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-4">3. Permissions and Data Storage</h2>
+                <p class="mb-4">To function correctly, the Extension utilizes specific browser permissions:</p>
+                <ul class="list-disc pl-5 space-y-2 mb-4">
+                    <li><strong>Storage Permission:</strong> We use <code>chrome.storage.local</code> to save reading progress (e.g., page numbers). This data is stored locally on your device.</li>
+                    <li><strong>File Access:</strong> We only access folders you explicitly select via the "Add Directory" feature to list and display PDF files.</li>
+                    <li><strong>IndexedDB:</strong> Used to store file handles so you can access your library across browser sessions.</li>
+                </ul>
+
+                <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-4">4. Third-Party Services</h2>
+                <ul class="list-disc pl-5 space-y-2 mb-4">
+                    <li><strong>PDF.js:</strong> Used for rendering PDFs locally.</li>
+                    <li><strong>Analytics:</strong> This extension does <strong>not</strong> use Google Analytics or tracking pixels.</li>
+                </ul>
+
+                <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-4">5. Contact</h2>
+                <p class="mb-4">
+                    If you have any questions, please contact us via the support section on the Chrome Web Store.
+                </p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
