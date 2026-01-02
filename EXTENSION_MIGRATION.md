@@ -40,7 +40,6 @@
   "description": "一个本地 PDF 图书管理器和阅读器。",
   "permissions": [
     "storage",
-    "tabs",
     {
       "fileSystem": ["read", "retainEntries", "directory"]
     }

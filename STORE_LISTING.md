@@ -35,7 +35,6 @@ PDF Library is designed for students, researchers, and developers who manage str
 
 **Permissions:**
 - `Storage`: Used to save your reading progress (page numbers) locally.
-- `Tabs`: Used to open the library in a full-screen tab for a better experience.
 
 ---
 
@@ -61,4 +60,4 @@ PDF Library 专为需要管理本地 PDF 文件的学生、研究人员和开发
 
 **权限说明：**
 - `Storage`：仅用于在本地保存您的阅读进度（页码）。
-- `Tabs`：用于在全屏标签页中打开图书馆，提供更好的沉浸式体验。
+

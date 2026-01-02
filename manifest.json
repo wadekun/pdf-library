@@ -2,10 +2,9 @@
   "manifest_version": 3,
   "name": "PDF Library",
   "version": "1.0.0",
-  "description": "一个本地 PDF 图书管理器和阅读器。",
+  "description": "A local PDF library manager and reader.",
   "permissions": [
-    "storage",
-    "tabs"
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",
